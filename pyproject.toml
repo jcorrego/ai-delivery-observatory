@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-delivery-observatory"
+version = "0.1.0"
+description = "Evidence-based engineering delivery and AI usage reports"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [{name = "Juan Carlos Orrego"}]
+dependencies = []
+
+[project.scripts]
+observatory = "observatory.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["observatory*"]
+
+[tool.setuptools.package-data]
+observatory = ["dashboard.html"]

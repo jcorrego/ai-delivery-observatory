@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "organization": "Example Engineering Organization",
+  "people": [
+    {
+      "id": "avery",
+      "name": "Avery Chen",
+      "history_from": "2024-01-01",
+      "aliases": [
+        "github:avery-demo",
+        "bitbucket:{synthetic-avery}",
+        "email:avery@example.invalid"
+      ]
+    },
+    {
+      "id": "blair",
+      "name": "Blair Morgan",
+      "history_from": "2024-01-01",
+      "aliases": [
+        "github:blair-demo",
+        "bitbucket:{synthetic-blair}",
+        "email:blair@example.invalid"
+      ]
+    },
+    {
+      "id": "casey",
+      "name": "Casey Reed",
+      "history_from": "2026-06-01",
+      "aliases": [
+        "github:casey-demo",
+        "bitbucket:{synthetic-casey}",
+        "email:casey@example.invalid"
+      ]
+    },
+    {
+      "id": "drew",
+      "name": "Drew Patel",
+      "history_from": "2024-01-01",
+      "aliases": [
+        "github:drew-demo",
+        "bitbucket:{synthetic-drew}",
+        "email:drew@example.invalid"
+      ]
+    }
+  ],
+  "admins": [
+    {
+      "id": "demo-admin",
+      "token_env": "OBSERVATORY_ADMIN_TOKEN"
+    }
+  ],
+  "bots": {
+    "bitbucket:{synthetic-pipeline}": "CI and deployment"
+  },
+  "baseline": {
+    "from": "2025-01-01",
+    "to": "2025-12-31",
+    "label": "2025 historical reference",
+    "repositories": [
+      "demo-org/core"
+    ],
+    "min_prs": 20,
+    "min_months": 3,
+    "min_diff_coverage": 0.95
+  },
+  "size": {
+    "version": "trial-size-v1",
+    "bands": [
+      [
+        1,
+        10,
+        0.5
+      ],
+      [
+        5,
+        170,
+        1
+      ],
+      [
+        18,
+        750,
+        2
+      ]
+    ],
+    "cap": 3
+  },
+  "hours_per_day": 8,
+  "holidays": [],
+  "effort_rubric_version": "starter-effort-v1"
+}
