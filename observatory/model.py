@@ -20,10 +20,13 @@ BOTS = {
 
 
 def day(value):
-    """Dates in neutral records are already normalized to the organization's timezone."""
+    """Parse a canonical YYYY-MM-DD date in the organization's timezone."""
     if not isinstance(value, str):
-        raise ValueError("Expected an ISO date string")
-    return date.fromisoformat(value)
+        raise ValueError("Expected a date string in YYYY-MM-DD format")
+    parsed = date.fromisoformat(value)
+    if parsed.isoformat() != value:
+        raise ValueError("Expected a date string in YYYY-MM-DD format")
+    return parsed
 
 
 def number(value, label):
@@ -118,6 +121,11 @@ def validate(data, config):
         day(person["history_from"])
         if person.get("history_to"):
             day(person["history_to"])
+    for holiday in config.get("holidays", []):
+        day(holiday)
+    for coverage in data.get("coverage", []):
+        day(coverage["from"])
+        day(coverage["to"])
     keys = set()
     for pr in data.get("prs", []):
         for key in ("key", "platform", "repository", "author", "created", "revision"):

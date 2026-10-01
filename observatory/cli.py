@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import tempfile
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -25,8 +26,18 @@ def export_html(data, config, start, end, path):
     page = Path(__file__).with_name("dashboard.html").read_text().replace("/*BOOTSTRAP*/null", payload)
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(page)
-    destination.chmod(0o600)
+    temporary = None
+    try:
+        # NamedTemporaryFile creates mode 0600 before any report data is written.
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=destination.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(page)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, destination)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def parser():

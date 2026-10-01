@@ -14,12 +14,10 @@ not proof that AI caused a productivity change or saved those hours.
 ## Try the example
 
 Python 3.11 or later is the only runtime requirement. There are no runtime dependencies.
-Until the implementation PR is merged, check out `feature/reference-tool`.
 
 ```sh
 git clone https://github.com/jcorrego/ai-delivery-observatory.git
 cd ai-delivery-observatory
-git checkout feature/reference-tool
 python3 -m observatory validate --data examples/synthetic.json --config examples/config.json
 python3 -m observatory html --data examples/synthetic.json --config examples/config.json \
   --from 2026-09-01 --to 2026-09-30 --output output/demo.html

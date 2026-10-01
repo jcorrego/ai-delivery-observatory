@@ -105,6 +105,8 @@ def make_server(data_path, config_path, port=8787):
                 if length < 1 or length > 8192:
                     raise ValueError("Invalid request size")
                 body = json.loads(self.rfile.read(length))
+                if not isinstance(body, dict):
+                    raise ValueError("Request body must be a JSON object")
                 if self.path == "/login":
                     address = self.client_address[0]
                     attempts = [t for t in failures.get(address, []) if t > time.time() - 60]

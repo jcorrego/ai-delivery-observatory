@@ -5,7 +5,7 @@ from pathlib import Path
 import unittest
 
 from observatory.metrics import report, working_days
-from observatory.model import Identities, size_units, validate
+from observatory.model import Identities, day, size_units, validate
 from observatory.storage import disposition, draft, merge_snapshots
 
 ROOT = Path(__file__).parents[1]
@@ -23,6 +23,63 @@ class MetricContracts(unittest.TestCase):
         self.assertEqual(working_days(date(2025, 1, 1), date(2025, 12, 31)), 261)
         self.assertEqual(working_days(date(2026, 1, 1), date(2026, 9, 30)), 195)
         self.assertEqual(working_days(date(2025, 1, 1), date(2025, 1, 3), ["2025-01-01"]), 2)
+
+    def test_neutral_date_fields_reject_compact_and_week_dates(self):
+        self.config["people"][0]["history_to"] = "2026-09-30"
+        self.config["holidays"] = ["2026-09-01"]
+        fields = (
+            ("data", ("prs", 0, "created")),
+            ("data", ("prs", 0, "merged")),
+            ("data", ("events", 0, "date")),
+            ("data", ("usage", 0, "date")),
+            ("data", ("ai_reviews", 0, "date")),
+            ("data", ("coverage", 0, "from")),
+            ("data", ("coverage", 0, "to")),
+            ("config", ("baseline", "from")),
+            ("config", ("baseline", "to")),
+            ("config", ("people", 0, "history_from")),
+            ("config", ("people", 0, "history_to")),
+            ("config", ("holidays", 0)),
+        )
+        for source, path in fields:
+            for representation in ("compact", "week"):
+                with self.subTest(source=source, field=path, representation=representation):
+                    data, config = copy.deepcopy(self.data), copy.deepcopy(self.config)
+                    record = {"data": data, "config": config}[source]
+                    for key in path[:-1]:
+                        record = record[key]
+                    original = date.fromisoformat(record[path[-1]])
+                    year, week, weekday = original.isocalendar()
+                    record[path[-1]] = (original.isoformat().replace("-", "") if representation == "compact"
+                                        else f"{year:04d}-W{week:02d}-{weekday}")
+                    with self.assertRaisesRegex(ValueError, "YYYY-MM-DD"):
+                        validate(data, config)
+
+    def test_report_period_rejects_noncanonical_dates(self):
+        for start, end in (("20260901", "2026-09-30"),
+                           ("2026-W36-2", "2026-09-30"),
+                           ("2026-09-01", "20260930"),
+                           ("2026-09-01", "2026-W40-3")):
+            with self.subTest(start=start, end=end):
+                with self.assertRaisesRegex(ValueError, "YYYY-MM-DD"):
+                    report(self.data, self.config, start, end)
+
+    def test_canonical_dates_still_require_valid_calendar_days(self):
+        for value in ("1900-02-29", "2023-02-29", "2024-04-31", "2024-13-01"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    day(value)
+        self.assertEqual(day("2000-02-29"), date(2000, 2, 29))
+        self.assertEqual(day("2024-02-29"), date(2024, 2, 29))
+
+    def test_leap_day_pr_is_counted_in_daily_and_monthly_output(self):
+        self.data["prs"][0].update(created="2024-02-29", merged="2024-02-29")
+        result = report(self.data, self.config, "2024-02-29", "2024-02-29")
+        self.assertEqual(result["daily"][0]["date"], "2024-02-29")
+        self.assertEqual(result["daily"][0]["created"], 1)
+        self.assertEqual(result["daily"][0]["merged"], 1)
+        self.assertEqual(result["monthly"][0]["month"], "2024-02")
+        self.assertEqual(result["monthly"][0]["merged"], 1)
 
     def test_human_output_excludes_bots_and_deduplicates_collaboration(self):
         r = self.result()

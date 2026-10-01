@@ -12,6 +12,7 @@ from observatory.server import make_server
 from observatory.storage import read, write
 
 ROOT = Path(__file__).parents[1]
+NO_BODY = object()
 
 
 class AdminBoundary(unittest.TestCase):
@@ -35,9 +36,9 @@ class AdminBoundary(unittest.TestCase):
         cls.thread.join(timeout=5)
         cls.folder.cleanup()
 
-    def request(self, path, body=None, headers=None):
-        req = Request(self.base + path, data=json.dumps(body).encode() if body is not None else None,
-                      headers=headers or {}, method="POST" if body is not None else "GET")
+    def request(self, path, body=NO_BODY, headers=None):
+        req = Request(self.base + path, data=json.dumps(body).encode() if body is not NO_BODY else None,
+                      headers=headers or {}, method="POST" if body is not NO_BODY else "GET")
         try:
             response = urlopen(req, timeout=5)
         except HTTPError as error:
@@ -104,6 +105,19 @@ class AdminBoundary(unittest.TestCase):
         status, _, _ = self.request("/api/effort", {"payload": "x" * 9000}, self.auth(**{"X-Observatory-Action": "review"}))
         self.assertEqual(status, 400)
         self.assertEqual(before, self.data_path.read_bytes())
+
+    def test_non_object_json_returns_400_without_side_effects(self):
+        before = self.data_path.read_bytes()
+        for path, action in (("/login", "login"), ("/api/effort", "review"), ("/logout", "logout")):
+            for payload in ([], None, "text", 42, True):
+                with self.subTest(path=path, payload=payload):
+                    status, body, headers = self.request(path, payload, self.auth(**{"X-Observatory-Action": action}))
+                    self.assertEqual(status, 400)
+                    self.assertIn("error", json.loads(body))
+                    self.assertNotIn("Set-Cookie", headers)
+                    self.assertEqual(before, self.data_path.read_bytes())
+        # Invalid shapes do not consume login attempts or break subsequent requests.
+        self.assertEqual(self.request("/login", {"token": self.token}, {"X-Observatory-Action": "login"})[0], 200)
 
     def test_server_rejects_missing_credentials(self):
         with patch.dict(os.environ, {"OBSERVATORY_ADMIN_TOKEN": ""}):

@@ -51,19 +51,22 @@ class Client:
                 raise RuntimeError("Provider connection failed; collection is incomplete") from None
         raise RuntimeError("Provider request failed")
 
-    def pages(self, path, bitbucket=False):
-        output, seen, url = [], set(), path
+    def iter_pages(self, path, bitbucket=False):
+        seen, url = set(), path
         for _ in range(self.max_pages):
             if url in seen:
                 raise ValueError("Provider pagination loop")
             seen.add(url)
             data, headers = self.get(url)
-            output.extend(data.get("values", []) if bitbucket else data)
+            yield data.get("values", []) if bitbucket else data
             match = re.search(r'<([^>]+)>;\s*rel="next"', headers.get("Link", ""))
             url = data.get("next") if bitbucket else match.group(1) if match else None
             if not url:
-                return output
+                return
         raise ValueError("Pagination limit reached; collection is incomplete")
+
+    def pages(self, path, bitbucket=False):
+        return [item for page in self.iter_pages(path, bitbucket) for item in page]
 
 
 def normalize_date(value, tz):
@@ -77,14 +80,22 @@ def actor(user, platform):
     return platform + ":" + str(value or "unknown")
 
 
+def github_updates(client, path, since, tz):
+    # The request sorts by updated time descending. Examine the whole boundary
+    # page before stopping, and do not treat an empty page as a dated cutoff.
+    for page in client.iter_pages(path):
+        relevant = [item for item in page if normalize_date(item["updated_at"], tz) >= since]
+        if page and not relevant:
+            return
+        yield from relevant
+
+
 def github(client, repository, since, until, tz):
     owner, repo = repository.split("/", 1)
     base = f"repos/{quote(owner, safe='')}/{quote(repo, safe='')}"
-    raw = client.pages(base + "/pulls?state=all&sort=updated&direction=desc&per_page=100")
+    raw = github_updates(client, base + "/pulls?state=all&sort=updated&direction=desc&per_page=100", since, tz)
     prs, events, cycles, errors = [], [], [], []
     for item in raw:
-        if normalize_date(item["updated_at"], tz) < since:
-            continue
         number = item["number"]
         key = f"github:{repository}#{number}"
         detail, _ = client.get(base + f"/pulls/{number}")
