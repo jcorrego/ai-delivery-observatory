@@ -3,6 +3,7 @@
 from calendar import monthrange
 from datetime import date, timedelta
 from statistics import mean, median
+from math import fsum
 
 from .model import day, fingerprint, size_units, validate
 
@@ -51,11 +52,11 @@ def baselines(data, config, ids, repos):
         known = [u for u in units if u is not None]
         coverage = len(known) / len(prs) if prs else 1
         weighted_ok = coverage >= policy.get("min_diff_coverage", .95)
-        rate = sum(known) / days if history_ok and weighted_ok else None
+        rate = fsum(known) / days if history_ok and weighted_ok else None
         rows.append({"id": pid, "name": person["name"], "from": start.isoformat(),
                      "to": end.isoformat(), "months": months, "working_days": days,
                      "merged_prs": len(prs), "scored_prs": len(known), "diff_coverage": coverage,
-                     "weighted_units": sum(known), "daily_units": rate,
+                     "weighted_units": fsum(known), "daily_units": rate,
                      "raw_daily_prs": len(prs) / days if history_ok else None,
                      "history_complete": history_ok,
                      "personal_eligible": rate is not None and rate > 0 and len(prs) >= policy.get("min_prs", 20),
@@ -106,7 +107,7 @@ def canonical_usage(data, ids, start, end, person, repositories):
             if row.get(field) is not None:
                 provider[field].append(row[field])
     return {name: {"observed_days": len(r["days"]),
-                   **{k: sum(r[k]) if r[k] else None for k in ("credits", "tokens", "prompts", "cost_usd", "code_review_active", "code_review_passive")}}
+                   **{k: fsum(r[k]) if r[k] else None for k in ("credits", "tokens", "prompts", "cost_usd", "code_review_active", "code_review_passive")}}
             for name, r in totals.items()}, unallocated
 
 
@@ -201,13 +202,13 @@ def report(data, config, from_date, to_date, person=None, repositories=None):
         use_personal = base["personal_eligible"]
         rate = base["daily_units"] if use_personal else baseline["team_daily_units"]
         coverage = len(scored) / len(comparable) if comparable else 1
-        equivalent = sum(scored) / rate if rate and coverage >= config["baseline"].get("min_diff_coverage", .95) and comparable else None
+        equivalent = fsum(scored) / rate if rate and coverage >= config["baseline"].get("min_diff_coverage", .95) and comparable else None
         people.append({"id": pid, "name": member["name"],
                        "created": sum(ids.person(p["author"]) == pid for p in created),
                        "merged": len(authored), "collaboration": len({e["pr"] for e in collaboration if ids.person(e["actor"]) == pid}),
                        "ai_reviews": sum(sponsor(c) == pid for c in selected_cycles),
                        "comparable_prs": len(comparable), "scored_prs": len(scored),
-                       "unmatched_prs": len(authored) - len(comparable), "weighted_units": sum(scored),
+                       "unmatched_prs": len(authored) - len(comparable), "weighted_units": fsum(scored),
                        "diff_coverage": coverage, "daily_reference_units": rate,
                        "reference": "Personal historical reference" if use_personal else "Team reference used: insufficient personal history",
                        "equivalent_days": equivalent,
@@ -241,10 +242,10 @@ def report(data, config, from_date, to_date, person=None, repositories=None):
               "summary": {"created": len(created), "merged": len(merged), "collaboration": len({e["pr"] for e in collaboration}),
                           "interaction_events": len(collaboration), "ai_reviews": len(selected_cycles),
                           "attributed_ai_reviews": sum(sponsor(c) is not None for c in selected_cycles),
-                          "approved_prs": len(approved), "effort_low_hours": sum(e["low_hours"] for e in approved),
-                          "effort_high_hours": sum(e["high_hours"] for e in approved),
+                          "approved_prs": len(approved), "effort_low_hours": fsum(e["low_hours"] for e in approved),
+                          "effort_high_hours": fsum(e["high_hours"] for e in approved),
                           "pending_effort": pending, "stale_effort": stale,
-                          "historical_equivalent_hours": sum(equivalent_values) if equivalent_values else None,
+                          "historical_equivalent_hours": fsum(equivalent_values) if equivalent_values else None,
                           "unlinked_merged_prs": unknown_current},
               "monthly": [{**m, "collaboration": len(m["collaboration"])} for m in months.values()],
               "daily": [{**d, "collaboration": len(d["collaboration"])} for d in daily.values()],
