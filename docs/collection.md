@@ -65,3 +65,9 @@ Primary API references, checked October 1, 2026:
 
 These documents support the adapter design. Mocked contract tests do not establish
 your private repository access, provider completeness, or organization deployment.
+
+An October 1, 2026 live smoke check collected this public repository's first PR
+through the GitHub adapter: one PR, six events, one AI review cycle, complete
+listing and detail coverage, and no collection errors. This verifies that one
+public-repository path. Bitbucket integration, private-repository permissions,
+large backfills, and production deployment still need organization-specific checks.
